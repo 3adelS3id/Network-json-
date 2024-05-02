@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request
 from fastapi import FastAPI
-#import openai
 import os
 from dotenv import load_dotenv  
 import pathlib
@@ -17,7 +16,7 @@ app = FastAPI()
 def read_root(): 
     return {"Welcome":"Network-Bot"}
 load_dotenv()
-genai.configure( api_key= 'AIzaSyCruf9GIkS40G0Tjmu1QsA5NS9mDNVEAiY')
+genai.configure(api_key=os.environ["API_KEY"])
     # Function to load Gemini Pro model and get responce
 model = genai.GenerativeModel("gemini-pro")
 chat=model.start_chat(history=[])
