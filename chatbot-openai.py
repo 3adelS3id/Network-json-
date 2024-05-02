@@ -1,38 +1,148 @@
-import openai
-import streamlit as st
+import os
+import math
+import json
 
-st.title("Chat-BOT")
+from ultralytics import YOLO
+from roboflow import Roboflow
+import google.generativeai as genai
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Initialize Roboflow
+rf = Roboflow(api_key="gpBJORB7I5m5f5yWUmzk")
+project = rf.workspace("floorplan-cvjp0").project("floorplan-9fxye")
+version = project.version(1)
+dataset = version.download("yolov8")
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Define dataset location
+dataset_location = r"C:\Users\GREEN STORE\Downloads\Network-json--master\floorplan-1"
+print(dataset_location)
 
-for message in st.session_state.messages:
-    with st.echo(message["role"]):
-        st.markdown(message["content"])
+# Read data.yaml content and remove unnecessary prefixes
+with open(os.path.join(dataset_location, "data.yaml"), "r") as file:
+    data_yaml = file.read()
 
-if prompt := st.chat_input("What's up?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+updated_data_yaml = data_yaml.replace("floorplan-1/", "").replace("../", "")
+
+# Write the updated content back to data.yaml
+with open(os.path.join(dataset_location, "data.yaml"), "w") as file:
+    file.write(updated_data_yaml)
+
+# Load YOLO model
+model1 = YOLO('best.pt')
+
+# Function to get room information using YOLO
+def get_rooms_info(image_source: str) -> list[dict]:
+    results = model1.predict(image_source, save=False, imgsz=320, conf=0.5)
+    rooms_info = []
+
+    for box in results[0].boxes.xywh.cpu():
+        x, y, w, h = box
+        x_center = (x + w) / 2
+        y_center = (y + h) / 2
+
+        rooms_info.append({
+            "width": w.item(),
+            "height": h.item(),
+            "location": (x_center.item(), y_center.item())
+        })
+
+    return rooms_info
+
+# Configure Google Generative AI
+genai.configure(api_key="AIzaSyDhqVElyxOKHaZ0eCkpvb3Hq_KGZo4tdeM")
+
+# Load Gemini Pro model for text generation
+model = genai.GenerativeModel("gemini-pro")
+
+# Get room information from image
+image_path = r"C:\Users\GREEN STORE\Downloads\Network-json--master\WhatsApp Image 2024-05-02 at 3.57.12 PM.jpeg"
+rooms_info = get_rooms_info(image_path)
+
+# Method to arrange data after the model
+def arrange_office_info(rooms_info):
+    offices = []
     
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        for response in openai.chat_completion(
-            model=st.session_state["openai_model"],
-            messages=[
-                 {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-            ],
-            stream=True,
-        ):
-            full_response += response.choices[0].message.get("content", "") 
-      #     full_response = "No response from the assistant."
-            message_placeholder.markdown(full_response + "")
-        message_placeholder.markdown(full_response)
-       # st.error(f"Response choices: {response.choices}")
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    for i, room in enumerate(rooms_info, start=1):
+        office_name = f"office {i}"
+        office_area = room["width"] * room["height"]
+        office_location = room["location"]
+
+        office_info = {
+            "name": office_name,
+            "area": office_area,
+            "location": office_location
+        }
+        offices.append(office_info)
+
+    return offices
+
+# Get arranged office information
+arranged_offices = arrange_office_info(rooms_info)
+
+# Print the arranged office information
+for office in arranged_offices:
+    print(f"Office {office['name']}: Area={office['area']}, Location={office['location']}")
+
+# Function to calculate Euclidean distance between two points
+def calculate_distance(point1, point2):
+    return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
+# Function to choose office from JSON data
+def choose_office(office_data):
+    offices = office_data["offices"]
+    selected_office = None
+    max_area = 0
+
+    # Find the office with the largest area
+    for office in offices:
+        if office["area"] > max_area:
+            max_area = office["area"]
+            selected_office = office
+
+    # Check if IT office is selected
+    if selected_office["name"] != "IT":
+        # Sort offices by area in descending order
+        sorted_offices = sorted(offices, key=lambda x: x["area"], reverse=True)
+        
+        # Choose the office with the largest area (excluding IT office)
+        it_room = sorted_offices[0]["name"]
+        print(f"The IT room is {it_room}.")
+    else:
+        print("The IT office was selected.")
+
+    # Calculate the number of switches needed
+    num_offices = len(offices)
+    num_switches = math.ceil(num_offices / 5)
+    print(f"Number of switches needed: {num_switches}")
+
+    # Determine nearest point to the IT room for each group of 5 offices
+    switch_locations = {}
+    for i in range(num_switches):
+        # Determine the range of offices for this switch
+        start_index = i * 5
+        end_index = min((i + 1) * 5, num_offices)
+        sorted_offices = sorted(offices, key=lambda x: x["area"], reverse=True)
+        offices_subset = sorted_offices[start_index:end_index]
+
+        # Calculate centroid of offices subset
+        centroid_x = sum(office["location"][0] for office in offices_subset) / len(offices_subset)
+        centroid_y = sum(office["location"][1] for office in offices_subset) / len(offices_subset)
+        centroid = (centroid_x, centroid_y)
+
+        # Find the nearest point to the IT room
+        nearest_point = None
+        min_distance = float('inf')
+        for office in offices_subset:
+            distance = calculate_distance(office["location"], selected_office["location"])
+            if distance < min_distance:
+                min_distance = distance
+                nearest_point = office["location"]
+
+        # Store the nearest point for this switch
+        switch_locations[i] = nearest_point
+
+    # Determine the location of each switch
+    for switch_num, nearest_point in switch_locations.items():
+        print(f"Switch {switch_num + 1} location: {nearest_point}")
+
+# Call the function with the arranged office data
+choose_office({"offices": arranged_offices})
