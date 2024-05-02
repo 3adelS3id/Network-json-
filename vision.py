@@ -111,11 +111,20 @@ if __name__ == "__main__":
     submit=st.button("Descripe this image ?")
 
     if submit:
-        response: str =get_gemini_responce(input,image)
-        print(response[8:-3].lstrip().rstrip())
+        response: str = get_gemini_responce(input, image)
+        json_start = response.find('{')
+        json_end = response.rfind('}') + 2
+        json_str = response[json_start:json_end]
+        graph_nodes = json.loads(json_str)
+        print(json_str)
         st.subheader("The Responce is ")
-        graph_nodes = json.loads(response[8:-3].lstrip().rstrip())
+        st.json(json_str)
         
+        
+        # Save JSON code to a file
+        with open("network_diagram.json", "w") as json_file:
+            json_file.write(json_str)
+        st.success("JSON code saved to 'network_diagram.json'")
         G = nx.Graph()
         devices = graph_nodes["devices"]
         nodes = []
@@ -137,8 +146,8 @@ if __name__ == "__main__":
         img_switch = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\switch_image.jpg')
         img_printer = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\printer_image.jpg')
         img_Router = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\router_image.jpg')
-        img_internet = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\Internet.jpg')
-        img_Firewall = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\firewall_image.jpg')
+        img_internet = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\internet.jpeg')
+        img_Firewall = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\firewall_image.jpeg')
         img_Server = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\server_image.jpg')
         img_pc = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\pc_image.jpg')
          
