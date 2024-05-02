@@ -17,7 +17,6 @@ import io
 
 load_dotenv()
 
-
 openai.api_key = os.environ["OPENAI_API_KEY"]
 genai.configure(api_key=os.environ["API_KEY"])
 
@@ -34,7 +33,7 @@ def get_gemini_responce(input,image):
                 {
                     'text':  "Giving a picture of a floor plan, draw a network digram for this image by using real devices like routers, switches, computers and servers.\n" +
                 "\n" +
-                "Ensure to cover all details in this image, like where the devices is and return it in json format!\n" +
+                "draw network diagram by using this steps as standard for drawing ,Task: Network Drawing Instruction Please follow these steps to draw the network:1-Office Connections: office (the number of offices will be determined later by the user) connects to a switch device.2-Switch Connections:All switches are connected to one switch server.3-Server Connections:The switch server connects to:One router device.Two server device.4-router device connects to : One firewall.5-firewall device connects to : The internet.6-Return Format:Please ensure the network diagram is represented in JSON format." +
                 "\n" +
                 '''The json file should be in the following format {"devices": [{"id": "device-name", "type": "device-type", "location": "device-location", "connections": [{"id": "device-connected-to-name" }]}]}, Make sure to follow this format only''',
             },
@@ -135,25 +134,25 @@ if __name__ == "__main__":
         G.add_edges_from(edges)
         
         # Load images for nodes
-        img_switch = mpimg.imread('D:/2024/project/api/switch_image.jpg')
-        img_printer = mpimg.imread('D:/2024/project/api/printer_image.jpg')
-        img_Router = mpimg.imread('D:/2024/project/api/router_image.jpg')
-        img_internet = mpimg.imread('D:/2024/project/api/internet_image.jpg')
-        img_Firewall = mpimg.imread('D:/2024/project/api/firewall_image.jpg')
-        img_Server = mpimg.imread('D:/2024/project/api/server_image.jpg')
-        img_pc = mpimg.imread('D:/2024/project/api/pc_image.jpg')
-
-        # Draw the graph
+        img_switch = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\switch_image.jpg')
+        img_printer = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\printer_image.jpg')
+        img_Router = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\router_image.jpg')
+        img_internet = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\Internet.jpg')
+        img_Firewall = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\firewall_image.jpg')
+        img_Server = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\server_image.jpg')
+        img_pc = mpimg.imread(r'C:\Users\GREEN STORE\Downloads\Network-json--master\pc_image.jpg')
+         
+      # Draw the graph
         pos = nx.spring_layout(G, seed=42)  # positions for all nodes
 
-        # Create the figure and axes
+# Create the figure and axes
         fig, ax = plt.subplots(figsize=(12, 8))
 
-        # Set background color
-        fig.patch.set_facecolor('black')
-        ax.set_facecolor('black')
+# Set background color
+        fig.patch.set_facecolor('white')
+        ax.set_facecolor('white')
 
-        # Draw nodes with images and labels
+# Draw nodes with images and labels
         node_images = {}
         for device in devices:
             match device["type"].lower():
@@ -165,16 +164,32 @@ if __name__ == "__main__":
                     node_images[device["id"]] = img_Server
                 case "pc" | "computer":
                     node_images[device["id"]] = img_pc
+                case "firewall" | "firewall device":
+                    node_images[device["id"]] = img_Firewall
+                case "internet" | "cloud":
+                    node_images[device["id"]] = img_internet
+                case "printer" :
+                    node_images[device["id"]] = img_printer                
             if device["id"].lower().find("pc") != -1:
                 node_images[device["id"]] = img_pc
-                
+
         for node, image in node_images.items():
             ax.imshow(image, aspect='auto', extent=(pos[node][0] - 0.1, pos[node][0] + 0.1, 
                                                     pos[node][1] - 0.1, pos[node][1] + 0.1))
-            ax.text(pos[node][0], pos[node][1] - 0.2, node, ha='center', fontsize=10, color='white')
+            ax.text(pos[node][0], pos[node][1] - 0.2, node, ha='center', fontsize=10, color='black')  # Changed text color to black
 
         # Draw edges
-        nx.draw_networkx_edges(G, pos, ax=ax, edge_color='white')
+        nx.draw_networkx_edges(G, pos, ax=ax, edge_color='black')  # Changed edge color to black
+
+        # Draw inside box for each group of devices
+        for subgraph in nx.connected_components(G):
+            if len(subgraph) > 1:
+                min_x = min(pos[node][0] for node in subgraph)
+                max_x = max(pos[node][0] for node in subgraph)
+                min_y = min(pos[node][1] for node in subgraph)
+                max_y = max(pos[node][1] for node in subgraph)
+                ax.add_patch(plt.Rectangle((min_x - 0.1, min_y - 0.1), max_x - min_x + 0.2, max_y - min_y + 0.2, fill=False, edgecolor='black'))  # Added rectangle patch
+
         # Remove axis
         ax.set_xticks([])
         ax.set_yticks([])
@@ -184,8 +199,9 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.close(fig)
         Image.open('network_graph.png')
-        
+
         st.image('network_graph.png')
+
         
         # with open('generate_graph.py', 'w') as file:
         #    responce = str(response)
