@@ -17,7 +17,6 @@ import io
 
 load_dotenv()
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
 genai.configure(api_key=os.environ["API_KEY"])
 
 # Function to load Gemini Pro model and get responce
@@ -54,49 +53,7 @@ def get_gemini_responce(input,image):
        response = model.generate_content(image)
 
     return response.text
-def chat_completion(messages: list) -> str:
-    try:
-        completion = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo',
-            messages=messages,
-            temperature=0,
-        )
-        return completion['choices'][0]['message']['content']
-    except:
-        return 'We are facing a technical issue at this moment.'
-
-def generate_messages(messages: list[str], query: str) -> list:
-    formated_messages = [
-        {
-            'role': 'system',
-            'content': 'You are a helpful Network Design assistant.'
-        }
-    ]
-
-    for m in messages:
-        formated_messages.append({
-            'role': 'user',
-            'content': m[0]
-        })
-        formated_messages.append({
-            'role': 'assistant',
-            'content': m[1]
-        })
-    formated_messages.append(
-        {
-            'role': 'user',
-            'content': query
-        }
-    )
-    return formated_messages
-
-def generate_response(query: str, chat_history2: list) -> tuple:
-        messages = generate_messages(chat_history2, query)
-        bot_message = chat_completion(messages)
-        chat_history2.append((query, bot_message))
-        time.sleep(random.randint(0, 5))
-        return '',chat_history2
-
+    
 if __name__ == "__main__":
     #intialize our streamlit app
     st.header("Draw a Network Bot")
