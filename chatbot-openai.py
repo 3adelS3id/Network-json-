@@ -1,10 +1,10 @@
 import os
 import math
-import json
-
+import matplotlib.pyplot as plt
 from ultralytics import YOLO
 from roboflow import Roboflow
 import google.generativeai as genai
+import matplotlib.image as mpimg
 
 # Initialize Roboflow
 rf = Roboflow(api_key="gpBJORB7I5m5f5yWUmzk")
@@ -86,6 +86,10 @@ for office in arranged_offices:
 def calculate_distance(point1, point2):
     return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
+# Function to calculate Euclidean distance between two points
+def calculate_distance(point1, point2):
+    return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
 # Function to choose office from JSON data
 def choose_office(office_data):
     offices = office_data["offices"]
@@ -116,6 +120,7 @@ def choose_office(office_data):
 
     # Determine nearest point to the IT room for each group of 5 offices
     switch_locations = {}
+    switch_offices = {}  # Store offices associated with each switch
     for i in range(num_switches):
         # Determine the range of offices for this switch
         start_index = i * 5
@@ -126,7 +131,6 @@ def choose_office(office_data):
         # Calculate centroid of offices subset
         centroid_x = sum(office["location"][0] for office in offices_subset) / len(offices_subset)
         centroid_y = sum(office["location"][1] for office in offices_subset) / len(offices_subset)
-        centroid = (centroid_x, centroid_y)
 
         # Find the nearest point to the IT room
         nearest_point = None
@@ -137,12 +141,40 @@ def choose_office(office_data):
                 min_distance = distance
                 nearest_point = office["location"]
 
-        # Store the nearest point for this switch
-        switch_locations[i] = nearest_point
+        # Store the coordinates for this switch
+        switch_locations[i] = (int(nearest_point[0]), int(nearest_point[1]))  # Convert to integers
+        
+        # Store the offices for this switch
+        switch_offices[i] = offices_subset
 
-    # Determine the location of each switch
-    for switch_num, nearest_point in switch_locations.items():
-        print(f"Switch {switch_num + 1} location: {nearest_point}")
+        print(f"Switch {i + 1} location: x1={int(nearest_point[0])}, y1={int(nearest_point[1])}")
+        print(f"Offices for Switch {i + 1}:")
+        for office in offices_subset:
+            print(f"Name: {office['name']}, Area: {office['area']}, Location: {office['location']}")
+
+    return switch_locations, switch_offices
 
 # Call the function with the arranged office data
-choose_office({"offices": arranged_offices})
+switch_locations, switch_offices = choose_office({"offices": arranged_offices})
+
+# Load the image
+image = mpimg.imread(image_path)
+
+# Create a plot
+plt.figure()
+plt.axis('off')  # Turn off axis labels
+
+# Show the image
+plt.imshow(image)
+
+# Plot each switch
+for switch_num, (x1, y1) in switch_locations.items():
+    plt.scatter(x1, y1, s=160, c='blue', marker='o')  
+    # Add text label indicating the switch number
+    plt.text(x1 + 10, y1 + 10, f"Switch {switch_num + 1}", fontsize=10, color='black')
+     # Plot lines connecting the switch point to its corresponding offices
+    for office in switch_offices[switch_num]:
+        office_x, office_y = office["location"]
+        plt.plot([x1, office_x], [y1, office_y], color='red', linestyle='--')
+# Show the plot
+plt.show()
